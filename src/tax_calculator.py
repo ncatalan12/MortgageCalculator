@@ -65,27 +65,8 @@ class FederalTaxCalculator(BaseTaxCalculator):
         self.above_line_deductions = above_line_deductions
         self.itemized_deductions = itemized_deductions
 
-    # # TODO RENAME? No dict?
-    # _STANDARD_DEDUCTION_DICT = {FilingStatus.SINGLE: 14600,
-    #                             FilingStatus.HEAD_OF_HOUSEHOLD: 21900,
-    #                             FilingStatus.MARRIED_JOINTLY: 29200,
-    #                             FilingStatus.MARRIED_SEPARATELY: 14600}
-    # _TAX_BRACKETS = {FilingStatus.SINGLE: [{"Rate": 0.1, "Income": 0},
-    #                                        {"Rate": 0.12, "Income": 11_600},
-    #                                        {"Rate": 0.22, "Income": 47_150},
-    #                                        {"Rate": 0.24, "Income": 100_500},
-    #                                        {"Rate": 0.32, "Income": 191_950},
-    #                                        {"Rate": 0.35, "Income": 243_725},
-    #                                        {"Rate": 0.37, "Income": 609_350}
-    #                                        ]
-    #                  }
-
     def calc_taxes_without_mortgage(self):
         net_income = self.gross_income - self.above_line_deductions
-        # get standard deduction based on filing status
-        # Make a tax bracket class, implement for filing statuses
-        # Make these classes that implement an interface? or use a dict?
-        # std_ded = TaxCalculator._STANDARD_DEDUCTION_DICT[self.filing_status]
         std_ded = self.get_standard_deduction(self.filing_status)
         # Many people won't have enough deductions to go above the standard deduction, take the higher of the values
         additional_deductions = max(std_ded, self.itemized_deductions)
@@ -102,29 +83,11 @@ class FederalTaxCalculator(BaseTaxCalculator):
         deductible_salt_taxes = min(FederalTaxCalculator._SALT_TAX_LIMIT, salt_taxes)
         # Look at the new below the line deductions
         total_deductions = deductible_interest + deductible_salt_taxes + self.itemized_deductions
-        # std_ded = TaxCalculator._STANDARD_DEDUCTION_DICT[self.filing_status]
         std_ded = self.get_standard_deduction(self.filing_status)
         additional_deductions = max(total_deductions, std_ded)
         net_income = self.gross_income - self.above_line_deductions - additional_deductions
         # Look at new taxes owed and marginal rate
         return self._calc_taxes(self.filing_status, net_income)
-
-    # # TODO make this static?
-    # def _calc_taxes(self, filing_status, taxable_income):
-    #     brackets = TaxCalculator._TAX_BRACKETS[filing_status]
-    #     marginal_rate = 0
-    #     total_tax = 0
-    #     remaining_income = taxable_income  # It is possible for taxable income to be 0, don't want to go negative
-    #     # Iterate over the brackets in reverse and adjust the remaining income to be taxed. Determine the income
-    #     # that is taxed at the current rate and calculate the tax owed for the current bracket.
-    #     for bracket in reversed(brackets):
-    #         if remaining_income > bracket["Income"]:
-    #             # The marginal tax rate will always be the highest rate you are taxed at
-    #             marginal_rate = max(marginal_rate, bracket["Rate"])
-    #             income_in_bracket = remaining_income - bracket["Income"]
-    #             total_tax += income_in_bracket * bracket["Rate"]
-    #             remaining_income = bracket["Income"]
-    #     return total_tax, marginal_rate
 
 
 class StateTaxCalculator(BaseTaxCalculator):
@@ -141,8 +104,6 @@ class StateTaxCalculator(BaseTaxCalculator):
                                                   {"Rate": 0.109, "Income": 25_000_000},
                                                   ]}
                      }
-
-    # _STD_DED = {"NY": {FilingStatus.SINGLE: 8_000}}
 
     def __init__(self, state: str, filing_status: FilingStatus, gross_income: int, above_line_deductions: int,
                  itemized_deductions: int):
