@@ -22,13 +22,13 @@ if __name__ == "__main__":
     # TODO calc state income tax
     ny_tax_calc = StateTaxCalculator("NY", filing_status, gross_income, above_line_deductions, itemized_deductions)
     property_tax = ny_tax_calc.calc_property_tax(home_cost)
-    state_income_tax, marginal_rate = ny_tax_calc.calc_income_taxes_without_mortgage()
-    state_income_tax_wo_mortgage, _ = ny_tax_calc.calc_income_taxes_with_mortgage(home_cost, year_one_interest)
+    state_income_tax = ny_tax_calc.calc_income_taxes_without_mortgage()
+    state_income_tax_wo_mortgage = ny_tax_calc.calc_income_taxes_with_mortgage(home_cost, year_one_interest)
     print(state_income_tax, state_income_tax_wo_mortgage)
     total_state_tax = property_tax + state_income_tax
     # print(property_tax, state_income_tax)
-    taxes_wo_mortgage, marg_rate_wo = fed_tax_calc.calc_taxes_without_mortgage(state_income_tax)
-    taxes_w_mortgage, marg_rate_w = fed_tax_calc.calc_taxes_with_mortgage(home_cost, year_one_interest, total_state_tax)
+    taxes_wo_mortgage = fed_tax_calc.calc_taxes_without_mortgage(state_income_tax)
+    taxes_w_mortgage = fed_tax_calc.calc_taxes_with_mortgage(home_cost, year_one_interest, total_state_tax)
     tax_savings = taxes_wo_mortgage - taxes_w_mortgage
     savings_per_month = tax_savings / 12
     print(taxes_wo_mortgage, taxes_w_mortgage, tax_savings, savings_per_month)

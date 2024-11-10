@@ -25,19 +25,16 @@ class BaseTaxCalculator:
 
     # TODO document
     def _calc_taxes(self, filing_status: FilingStatus, taxable_income: int) -> (float, float):
-        marginal_rate = 0
         total_tax = 0
         remaining_income = taxable_income  # It is possible for taxable income to be 0, don't want to go negative
         # Iterate over the brackets in reverse and adjust the remaining income to be taxed. Determine the income
         # that is taxed at the current rate and calculate the tax owed for the current bracket.
         for bracket in reversed(self._brackets[filing_status]):
             if remaining_income > bracket.start_income:
-                # The marginal tax rate will always be the highest rate you are taxed at
-                marginal_rate = max(marginal_rate, bracket.tax_rate)
                 income_in_bracket = remaining_income - bracket.start_income
                 total_tax += income_in_bracket * bracket.tax_rate
                 remaining_income = bracket.start_income
-        return total_tax, marginal_rate
+        return total_tax
 
 
 class FederalTaxCalculator(BaseTaxCalculator):
