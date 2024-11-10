@@ -44,7 +44,7 @@ class FederalTaxCalculator(BaseTaxCalculator):
     # Maximum State and Local Taxes (SALT) that can be deducted from federal income
     _SALT_TAX_LIMIT = 10_000
     # Maximum mortgage whose interest can be deducted.
-    _MORTGAGE_LIMIT = {FilingStatus.SINGLE: 750_000,
+    MORTGAGE_LIMIT = {FilingStatus.SINGLE: 750_000,
                        FilingStatus.HEAD_OF_HOUSEHOLD: 750_000,
                        FilingStatus.MARRIED_JOINTLY: 750_000,
                        FilingStatus.MARRIED_SEPARATELY: 375_000}
@@ -65,18 +65,20 @@ class FederalTaxCalculator(BaseTaxCalculator):
         self.above_line_deductions = above_line_deductions
         self.itemized_deductions = itemized_deductions
 
-    def calc_taxes_without_mortgage(self):
+    def calc_taxes_without_mortgage(self, salt_taxes=0):
         net_income = self.gross_income - self.above_line_deductions
         std_ded = self.get_standard_deduction(self.filing_status)
+        deductible_salt_taxes = min(FederalTaxCalculator._SALT_TAX_LIMIT, salt_taxes)
+        total_deductions = deductible_salt_taxes + self.itemized_deductions
         # Many people won't have enough deductions to go above the standard deduction, take the higher of the values
-        additional_deductions = max(std_ded, self.itemized_deductions)
+        additional_deductions = max(std_ded, total_deductions)
         net_income -= additional_deductions
         net_income = max(net_income, 0)
         return self._calc_taxes(self.filing_status, net_income)
 
     def calc_taxes_with_mortgage(self, loan_amount, annual_interest, salt_taxes):
         # Figure out the amount of mortgage interest that is deductible
-        loan_limit = FederalTaxCalculator._MORTGAGE_LIMIT[self.filing_status]
+        loan_limit = FederalTaxCalculator.MORTGAGE_LIMIT[self.filing_status]
         deductible_interest = annual_interest * (min(loan_limit, loan_amount) / loan_limit)
         # Figure out the salt taxes that count
         # Salt limit is the same where filing jointly or separately, marriage penalty
@@ -93,29 +95,27 @@ class FederalTaxCalculator(BaseTaxCalculator):
 class StateTaxCalculator(BaseTaxCalculator):
     _PROPERTY_TAX_EST = {"NY": 0.014}
 
-    _TAX_BRACKETS = {"NY": {FilingStatus.SINGLE: [{"Rate": 0.04, "Income": 0},
-                                                  {"Rate": 0.045, "Income": 8_500},
-                                                  {"Rate": 0.0525, "Income": 11_700},
-                                                  {"Rate": 0.055, "Income": 13_900},
-                                                  {"Rate": 0.06, "Income": 80_650},
-                                                  {"Rate": 0.0685, "Income": 215_400},
-                                                  {"Rate": 0.0965, "Income": 1_077_550},
-                                                  {"Rate": 0.103, "Income": 5_000_000},
-                                                  {"Rate": 0.109, "Income": 25_000_000},
-                                                  ]}
+    _STD_DEDUCTIONS = {
+        "NY": {FilingStatus.SINGLE: 8_000, FilingStatus.HEAD_OF_HOUSEHOLD: 11_200, FilingStatus.MARRIED_JOINTLY: 16_050,
+               FilingStatus.MARRIED_SEPARATELY: 8_000}}
+
+    _TAX_BRACKETS = {"NY": {FilingStatus.SINGLE: [Bracket(0.04, 0), Bracket(0.045, 8_500), Bracket(0.0525, 11_700),
+                                                  Bracket(0.055, 13_900), Bracket(0.06, 80_650),
+                                                  Bracket(0.0685, 215_400),
+                                                  Bracket(0.0965, 1_077_550), Bracket(0.103, 5_000_000),
+                                                  Bracket(0.109, 25_000_000)]}
                      }
+
+    _MORTGAGE_LIMIT = {"NY": FederalTaxCalculator.MORTGAGE_LIMIT}
 
     def __init__(self, state: str, filing_status: FilingStatus, gross_income: int, above_line_deductions: int,
                  itemized_deductions: int):
-        super().__init__(
-            std_ded_map={FilingStatus.SINGLE: 8_000},
-            brackets={FilingStatus.SINGLE: [Bracket(0.04, 0), Bracket(0.045, 8_500), Bracket(0.0525, 11_700),
-                                            Bracket(0.055, 13_900),
-                                            Bracket(0.06, 80_650), Bracket(0.0685, 215_400), Bracket(0.0965, 1_077_550),
-                                            Bracket(0.103, 5_000_000), Bracket(0.109, 25_000_000)]
-                      })
         # TODO validate, make all caps
         self.state = state
+        super().__init__(
+            std_ded_map=StateTaxCalculator._STD_DEDUCTIONS[self.state],
+            brackets=StateTaxCalculator._TAX_BRACKETS[self.state]
+        )
         self.filing_status = filing_status
         self.gross_income = gross_income
         self.above_line_deductions = above_line_deductions
@@ -124,8 +124,8 @@ class StateTaxCalculator(BaseTaxCalculator):
     # TODO def, property taxes are typically defined by county, currently uses an estimate, optional parameter allows custom rate
     # TODO think about adding exemptions or deductions
     def calc_property_tax(self, home_value, tax_rate=None):
-        # TODO handle custom tax rate
-        return StateTaxCalculator._PROPERTY_TAX_EST[self.state] * home_value
+        tax_rate = tax_rate if tax_rate is not None else StateTaxCalculator._PROPERTY_TAX_EST[self.state]
+        return tax_rate * home_value
 
     def calc_income_taxes_without_mortgage(self):
         net_income = self.gross_income - self.above_line_deductions
@@ -136,6 +136,14 @@ class StateTaxCalculator(BaseTaxCalculator):
         net_income = max(net_income, 0)
         return self._calc_taxes(self.filing_status, net_income)
 
-    def calc_income_taxes_with_mortgage(self):
-        # TODO implement this, figure out how much of mortgage interest is deductible
-        pass
+    def calc_income_taxes_with_mortgage(self, loan_amount, annual_interest):
+        # Figure out the amount of mortgage interest that is deductible
+        loan_limit = StateTaxCalculator._MORTGAGE_LIMIT[self.state][self.filing_status]
+        deductible_interest = annual_interest * (min(loan_limit, loan_amount) / loan_limit)
+        # Look at the new below the line deductions
+        total_deductions = deductible_interest + self.itemized_deductions
+        std_ded = self.get_standard_deduction(self.filing_status)
+        additional_deductions = max(total_deductions, std_ded)
+        net_income = max(self.gross_income - self.above_line_deductions - additional_deductions, 0)
+        # Look at new taxes owed and marginal rate
+        return self._calc_taxes(self.filing_status, net_income)
