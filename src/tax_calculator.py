@@ -23,7 +23,6 @@ class BaseTaxCalculator:
     def get_standard_deduction(self, filing_status: FilingStatus):
         return self._std_ded_map[filing_status]
 
-    # TODO document
     def _calc_taxes(self, filing_status: FilingStatus, taxable_income: int) -> (float, float):
         total_tax = 0
         remaining_income = taxable_income  # It is possible for taxable income to be 0, don't want to go negative
@@ -42,13 +41,12 @@ class FederalTaxCalculator(BaseTaxCalculator):
     _SALT_TAX_LIMIT = 10_000
     # Maximum mortgage whose interest can be deducted.
     MORTGAGE_LIMIT = {FilingStatus.SINGLE: 750_000,
-                       FilingStatus.HEAD_OF_HOUSEHOLD: 750_000,
-                       FilingStatus.MARRIED_JOINTLY: 750_000,
-                       FilingStatus.MARRIED_SEPARATELY: 375_000}
+                      FilingStatus.HEAD_OF_HOUSEHOLD: 750_000,
+                      FilingStatus.MARRIED_JOINTLY: 750_000,
+                      FilingStatus.MARRIED_SEPARATELY: 375_000}
 
     def __init__(self, filing_status: FilingStatus, gross_income: int, above_line_deductions: int,
                  itemized_deductions: int):
-        # TODO fill out other brackets
         super().__init__(
             {FilingStatus.SINGLE: 14600, FilingStatus.HEAD_OF_HOUSEHOLD: 21900, FilingStatus.MARRIED_JOINTLY: 29200,
              FilingStatus.MARRIED_SEPARATELY: 14600},
@@ -56,7 +54,6 @@ class FederalTaxCalculator(BaseTaxCalculator):
                                    Bracket(0.24, 100_500),
                                    Bracket(0.32, 191_950), Bracket(0.35, 243_725), Bracket(0.37, 609_350)]
              })
-        # TODO validate filing status and throw unsupported exception for yet to be implemented
         self.filing_status = filing_status
         self.gross_income = gross_income
         self.above_line_deductions = above_line_deductions
@@ -100,14 +97,12 @@ class StateTaxCalculator(BaseTaxCalculator):
                                                   Bracket(0.055, 13_900), Bracket(0.06, 80_650),
                                                   Bracket(0.0685, 215_400),
                                                   Bracket(0.0965, 1_077_550), Bracket(0.103, 5_000_000),
-                                                  Bracket(0.109, 25_000_000)]}
-                     }
+                                                  Bracket(0.109, 25_000_000)]}}
 
     _MORTGAGE_LIMIT = {"NY": FederalTaxCalculator.MORTGAGE_LIMIT}
 
     def __init__(self, state: str, filing_status: FilingStatus, gross_income: int, above_line_deductions: int,
                  itemized_deductions: int):
-        # TODO validate, make all caps
         self.state = state
         super().__init__(
             std_ded_map=StateTaxCalculator._STD_DEDUCTIONS[self.state],
@@ -118,8 +113,6 @@ class StateTaxCalculator(BaseTaxCalculator):
         self.above_line_deductions = above_line_deductions
         self.itemized_deductions = itemized_deductions
 
-    # TODO def, property taxes are typically defined by county, currently uses an estimate, optional parameter allows custom rate
-    # TODO think about adding exemptions or deductions
     def calc_property_tax(self, home_value, tax_rate=None):
         tax_rate = tax_rate if tax_rate is not None else StateTaxCalculator._PROPERTY_TAX_EST[self.state]
         return tax_rate * home_value
