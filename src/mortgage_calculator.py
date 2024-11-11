@@ -42,18 +42,20 @@ class MortgageCalculator():
         # Build rows first then create df at the end for efficiency
         rows = []
         cur_balance = self.loan_amount
+        equity = self.down_payment_amount
         for cur_month in range(self.loan_term_years * MONTHS_PER_YEAR):
             # Use 1 indexing for month and year
             year = 1 + cur_month // MONTHS_PER_YEAR
             month_of_year = 1 + cur_month % MONTHS_PER_YEAR
             interest_payed = cur_balance * monthly_interest
             principal_payed = self.monthly_payment - interest_payed
+            equity += principal_payed
             rows.append(
                 {"Month": month_of_year, "Year": year, "Balance": cur_balance, "Interest Payment": interest_payed,
-                 "Principal Payment": principal_payed})
+                 "Principal Payment": principal_payed, "Equity": equity})
             # Adjust the load balance by interest paid down each month
             cur_balance -= principal_payed
-        return pd.DataFrame(rows, columns=["Month", "Year", "Balance", "Interest Payment", "Principal Payment"])
+        return pd.DataFrame(rows, columns=["Month", "Year", "Balance", "Interest Payment", "Principal Payment", "Equity"])
 
     def get_year_one_interest(self):
         # TODO check if the table is null and call method if it is
